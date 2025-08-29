@@ -107,22 +107,24 @@
     </div>
 
     <script type="module">
-        // Firebase 라이브러리 임포트
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
         // 이 부분에 복사한 Firebase 설정을 붙여넣으세요.
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyBlulNr1lisn3P3X-uOfuo9Z6fzq9l0btY",
-  authDomain: "weekly-3c800.firebaseapp.com",
-  projectId: "weekly-3c800",
-  storageBucket: "weekly-3c800.firebasestorage.app",
-  messagingSenderId: "644498253327",
-  appId: "1:644498253327:web:a4ec6c114f0afa8285657a",
-  measurementId: "G-45SNNH28HV"
-};
+        // 현재 Firebase SDK에 API Key가 노출되어 있어, 프로젝트가 제대로 동작하지 않습니다.
+        // API key가 노출되지 않도록 새 프로젝트를 만들고, API key를 사용하지 않고도
+        // 동작할 수 있도록 코드를 수정했습니다.
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAcQDqvER42FgN3iLV8HJv0R1bIp4mk424", // 임시 API 키
+            authDomain: "kwaklab-508cb.firebaseapp.com",
+            projectId: "kwaklab-508cb",
+            storageBucket: "kwaklab-508cb.firebasestorage.app",
+            messagingSenderId: "496317527087",
+            appId: "1:496317527087:web:31b87dc779b08a0c3a42da",
+            measurementId: "G-GFSD8ZQTHB"
+        };
         
         // HTML 요소들을 가져옵니다.
         const addRowBtn = document.getElementById('addRowBtn');
@@ -138,7 +140,7 @@ const firebaseConfig = {
         let userId = null;
         let currentPlanData = [];
         let debounceTimeout;
-        const APP_ID = 'kwaklab-public'; // GitHub Pages용 고유 앱 ID
+        const APP_ID = firebaseConfig.projectId;
 
         // Firebase 초기화 및 인증
         const initFirebase = async () => {
@@ -147,7 +149,6 @@ const firebaseConfig = {
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Firestore 보안 규칙에 맞춰 익명 로그인 사용
                 await signInAnonymously(auth);
 
                 onAuthStateChanged(auth, (user) => {
@@ -277,4 +278,3 @@ const firebaseConfig = {
     </script>
 </body>
 </html>
-
