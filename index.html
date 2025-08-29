@@ -113,8 +113,16 @@
         import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // 전역 변수 설정 (캔버스 환경에서 제공)
+        // Canvas 환경이 아닐 경우, Firebase를 익명으로 초기화합니다.
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "YOUR_API_KEY", // 실제 프로젝트의 API 키를 입력해야 합니다.
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         // HTML 요소들을 가져옵니다.
@@ -135,6 +143,7 @@
         // Firebase 초기화 및 인증
         const initFirebase = async () => {
             try {
+                // Firebase 변수가 Canvas 환경에서 제공되지 않으면 가짜 값을 사용합니다.
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
