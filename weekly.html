@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주간 연구 계획 목록</title>
+    <!-- Tailwind CSS를 사용하여 스타일링합니다. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Tailwind CSS에서 사용할 커스텀 설정을 추가합니다.
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 테이블 셀의 기본 스타일을 설정합니다. */
+        td {
+            @apply p-4 border border-gray-200;
+        }
+        /* 마우스 오버 시 셀의 배경색을 변경하여 편집 가능함을 시각적으로 보여줍니다. */
+        td:hover {
+            @apply bg-gray-50;
+        }
+        /* 모든 텍스트에 부드러운 전환 효과를 적용합니다. */
+        * {
+            transition: all 0.3s ease-in-out;
+        }
+
+        /* 커스텀 모달 스타일 */
+        .modal {
+            display: none; /* 기본적으로 숨김 */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            @apply bg-white p-8 rounded-xl shadow-2xl;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans p-8">
+    <div class="container mx-auto max-w-5xl bg-white shadow-xl rounded-2xl p-8 lg:p-12">
+        <!-- 제목 섹션 -->
+        <div class="text-center mb-6">
+            <h1 class="text-3xl lg:text-4xl font-extrabold text-gray-900 mb-2">주간 연구 계획 목록</h1>
+            <p class="text-base text-gray-500">
+                실시간으로 공유되는 클라우드 문서입니다.
+            </p>
+        </div>
+        
+        <!-- 로딩 및 상태 메시지 -->
+        <div id="statusMessage" class="text-center text-sm font-medium text-gray-600 mb-6">데이터 로딩 중...</div>
+
+        <!-- 테이블 컨테이너 -->
+        <div class="overflow-x-auto rounded-lg border border-gray-200">
+            <table class="min-w-full divide-y divide-gray-200 table-fixed">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="w-1/6 px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">이름</th>
+                        <th class="w-1/6 px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">월</th>
+                        <th class="w-1/6 px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">화</th>
+                        <th class="w-1/6 px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">수</th>
+                        <th class="w-1/6 px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">목</th>
+                        <th class="w-1/6 px-4 py-3 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">금</th>
+                    </tr>
+                </thead>
+                <tbody id="planTableBody" class="bg-white divide-y divide-gray-200">
+                    <!-- 데이터는 스크립트에서 동적으로 로드됩니다. -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 버튼 섹션 -->
+        <div class="mt-8 flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+            <!-- 행 추가 버튼 -->
+            <button id="addRowBtn" class="bg-indigo-600 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                새 행 추가
+            </button>
+            <!-- 내용 초기화 버튼 -->
+            <button id="resetBtn" class="bg-red-500 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2">
+                내용 초기화
+            </button>
+        </div>
+    </div>
+
+    <!-- 초기화 확인 모달 -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content text-center">
+            <p class="mb-6 text-lg font-bold text-gray-800">모든 내용을 정말로 초기화하시겠습니까?</p>
+            <div class="flex justify-center space-x-4">
+                <button id="confirmResetBtn" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-xl shadow-md hover:bg-red-600">초기화</button>
+                <button id="cancelResetBtn" class="bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-xl shadow-md hover:bg-gray-400">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase 라이브러리 임포트
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 전역 변수 설정 (캔버스 환경에서 제공)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // HTML 요소들을 가져옵니다.
+        const addRowBtn = document.getElementById('addRowBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const planTableBody = document.getElementById('planTableBody');
+        const statusMessage = document.getElementById('statusMessage');
+        const confirmModal = document.getElementById('confirmModal');
+        const confirmResetBtn = document.getElementById('confirmResetBtn');
+        const cancelResetBtn = document.getElementById('cancelResetBtn');
+
+        let db;
+        let auth;
+        let userId = null;
+        let currentPlanData = [];
+        let debounceTimeout;
+
+        // Firebase 초기화 및 인증
+        const initFirebase = async () => {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // 사용자 인증 상태 변경 감지
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        statusMessage.textContent = '데이터 로딩 중...';
+                        console.log("Firebase authenticated. User ID:", userId);
+                        setupFirestoreListener(); // 인증 완료 후 Firestore 리스너 설정
+                    } else {
+                        statusMessage.textContent = '인증 중...';
+                        console.log("Firebase not authenticated. Signing in...");
+                        // 토큰이 있으면 커스텀 토큰으로 로그인, 없으면 익명 로그인
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase 초기화 또는 인증 오류:", error);
+                statusMessage.textContent = '오류: Firebase 초기화 실패';
+            }
+        };
+
+        // Firestore 데이터 변경을 실시간으로 감지
+        const setupFirestoreListener = () => {
+            // 모든 사용자가 공유하는 하나의 문서에 연결
+            const docPath = `artifacts/${appId}/public/data/weekly-plans/current_week_plan`;
+            const planDocRef = doc(db, docPath);
+
+            onSnapshot(planDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data().plan || [];
+                    currentPlanData = data;
+                    renderTable(data);
+                    statusMessage.textContent = '최신 상태로 업데이트되었습니다.';
+                } else {
+                    // 문서가 없으면 빈 배열로 초기화
+                    currentPlanData = [];
+                    renderTable([]);
+                    statusMessage.textContent = '새로운 문서를 작성해주세요.';
+                }
+            }, (error) => {
+                console.error("Firestore 리스너 오류:", error);
+                statusMessage.textContent = '오류: 데이터 로드 실패';
+            });
+        };
+
+        // 현재 데이터를 Firestore에 저장
+        const saveToFirestore = (data) => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(async () => {
+                if (!db || !userId) {
+                    console.error("데이터베이스가 초기화되지 않았거나 사용자 ID가 없습니다.");
+                    statusMessage.textContent = '오류: 저장할 수 없습니다. 다시 시도해주세요.';
+                    return;
+                }
+                const docPath = `artifacts/${appId}/public/data/weekly-plans/current_week_plan`;
+                const planDocRef = doc(db, docPath);
+                try {
+                    await setDoc(planDocRef, { plan: data });
+                    statusMessage.textContent = '자동 저장 완료!';
+                } catch (error) {
+                    console.error("Firestore 저장 오류:", error);
+                    statusMessage.textContent = '오류: 저장 실패';
+                }
+            }, 500); // 500ms 디바운스
+        };
+
+        // 테이블을 렌더링 (DOM 업데이트)
+        const renderTable = (data) => {
+            planTableBody.innerHTML = ''; // 기존 내용 초기화
+            data.forEach((rowData, rowIndex) => {
+                const newRow = document.createElement('tr');
+                newRow.className = "hover:bg-gray-50";
+                rowData.forEach((cellData, colIndex) => {
+                    const newCell = document.createElement('td');
+                    newCell.contentEditable = "true";
+                    newCell.textContent = cellData;
+                    if (colIndex === 0) {
+                        newCell.className = "font-medium text-gray-900";
+                    }
+                    newCell.addEventListener('input', (event) => {
+                        currentPlanData[rowIndex][colIndex] = event.target.textContent;
+                        saveToFirestore(currentPlanData); // 내용 변경 시 자동 저장
+                    });
+                    newRow.appendChild(newCell);
+                });
+                planTableBody.appendChild(newRow);
+            });
+        };
+
+        /**
+         * 새 행을 추가하는 함수입니다.
+         * 빈 셀 6개(이름 + 5일)를 가진 새로운 행을 생성하고 Firestore에 저장합니다.
+         */
+        const addRow = () => {
+            const newRowData = ['', '', '', '', '', ''];
+            currentPlanData.push(newRowData);
+            saveToFirestore(currentPlanData);
+        };
+
+        /**
+         * 테이블의 모든 내용을 초기화하는 함수입니다.
+         * Firestore에서 문서를 삭제합니다.
+         */
+        const resetTable = async () => {
+            // 모달을 보여줍니다.
+            confirmModal.style.display = 'flex';
+        };
+
+        // 모달 버튼 이벤트 리스너
+        confirmResetBtn.addEventListener('click', async () => {
+            confirmModal.style.display = 'none'; // 모달 숨기기
+            if (!db || !userId) {
+                console.error("데이터베이스가 초기화되지 않았거나 사용자 ID가 없습니다.");
+                statusMessage.textContent = '오류: 초기화할 수 없습니다. 다시 시도해주세요.';
+                return;
+            }
+            try {
+                const docPath = `artifacts/${appId}/public/data/weekly-plans/current_week_plan`;
+                const planDocRef = doc(db, docPath);
+                await setDoc(planDocRef, { plan: [] }); // 빈 배열로 초기화
+                statusMessage.textContent = '내용이 초기화되었습니다.';
+            } catch (error) {
+                console.error("Firestore 초기화 오류:", error);
+                statusMessage.textContent = '오류: 초기화 실패';
+            }
+        });
+
+        cancelResetBtn.addEventListener('click', () => {
+            confirmModal.style.display = 'none'; // 모달 숨기기
+        });
+
+        // 버튼 클릭 이벤트 리스너를 추가합니다.
+        addRowBtn.addEventListener('click', addRow);
+        resetBtn.addEventListener('click', () => {
+            // alert() 대신 커스텀 모달 사용
+            confirmModal.style.display = 'flex';
+        });
+
+        // 앱 시작
+        window.onload = initFirebase;
+    </script>
+</body>
+</html>
