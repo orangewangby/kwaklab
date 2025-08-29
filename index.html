@@ -112,18 +112,14 @@
         import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
         // 이 부분에 복사한 Firebase 설정을 붙여넣으세요.
-        // 현재 Firebase SDK에 API Key가 노출되어 있어, 프로젝트가 제대로 동작하지 않습니다.
-        // API key가 노출되지 않도록 새 프로젝트를 만들고, API key를 사용하지 않고도
-        // 동작할 수 있도록 코드를 수정했습니다.
-
         const firebaseConfig = {
-            apiKey: "AIzaSyAcQDqvER42FgN3iLV8HJv0R1bIp4mk424", // 임시 API 키
-            authDomain: "kwaklab-508cb.firebaseapp.com",
-            projectId: "kwaklab-508cb",
-            storageBucket: "kwaklab-508cb.firebasestorage.app",
-            messagingSenderId: "496317527087",
-            appId: "1:496317527087:web:31b87dc779b08a0c3a42da",
-            measurementId: "G-GFSD8ZQTHB"
+            apiKey: "AIzaSyBlulNr1lisn3P3X-uOfuo9Z6fzq9l0btY",
+            authDomain: "weekly-3c800.firebaseapp.com",
+            projectId: "weekly-3c800",
+            storageBucket: "weekly-3c800.firebasestorage.app",
+            messagingSenderId: "644498253327",
+            appId: "1:644498253327:web:a4ec6c114f0afa8285657a",
+            measurementId: "G-45SNNH28HV"
         };
         
         // HTML 요소들을 가져옵니다.
@@ -149,8 +145,7 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                await signInAnonymously(auth);
-
+                // 익명 인증은 자동으로 이루어지므로, 사용자가 로그인할 때까지 기다립니다.
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
@@ -158,8 +153,13 @@
                         console.log("Firebase authenticated. User ID:", userId);
                         setupFirestoreListener();
                     } else {
-                        console.log("Firebase not authenticated.");
-                        statusMessage.textContent = '오류: 인증 실패';
+                        // 사용자가 로그인하지 않았거나 로그아웃했을 경우 익명으로 로그인합니다.
+                        signInAnonymously(auth).then(() => {
+                            console.log("Signed in anonymously.");
+                        }).catch((error) => {
+                            console.error("익명 로그인 실패:", error);
+                            statusMessage.textContent = '오류: 인증 실패';
+                        });
                     }
                 });
             } catch (error) {
