@@ -109,24 +109,20 @@
     <script type="module">
         // Firebase 라이브러리 임포트
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // 전역 변수 설정 (캔버스 환경에서 제공)
-        // Canvas 환경이 아닐 경우, Firebase를 익명으로 초기화합니다.
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyAcQDqvER42FgN3iLV8HJv0R1bIp4mk424",
-  authDomain: "kwaklab-508cb.firebaseapp.com",
-  projectId: "kwaklab-508cb",
-  storageBucket: "kwaklab-508cb.firebasestorage.app",
-  messagingSenderId: "496317527087",
-  appId: "1:496317527087:web:31b87dc779b08a0c3a42da",
-  measurementId: "G-GFSD8ZQTHB"
-};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
+        // 이 부분에 복사한 Firebase 설정을 붙여넣으세요.
+        const firebaseConfig = {
+            apiKey: "AIzaSyAcQDqvER42FgN3iLV8HJv0R1bIp4mk424",
+            authDomain: "kwaklab-508cb.firebaseapp.com",
+            projectId: "kwaklab-508cb",
+            storageBucket: "kwaklab-508cb.firebasestorage.app",
+            messagingSenderId: "496317527087",
+            appId: "1:496317527087:web:31b87dc779b08a0c3a42da",
+            measurementId: "G-GFSD8ZQTHB"
+        };
+        
         // HTML 요소들을 가져옵니다.
         const addRowBtn = document.getElementById('addRowBtn');
         const resetBtn = document.getElementById('resetBtn');
@@ -141,31 +137,27 @@ const firebaseConfig = {
         let userId = null;
         let currentPlanData = [];
         let debounceTimeout;
+        const APP_ID = 'kwaklab-public'; // GitHub Pages용 고유 앱 ID
 
         // Firebase 초기화 및 인증
         const initFirebase = async () => {
             try {
-                // Firebase 변수가 Canvas 환경에서 제공되지 않으면 가짜 값을 사용합니다.
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // 사용자 인증 상태 변경 감지
-                onAuthStateChanged(auth, async (user) => {
+                // Firestore 보안 규칙에 맞춰 익명 로그인 사용
+                await signInAnonymously(auth);
+
+                onAuthStateChanged(auth, (user) => {
                     if (user) {
                         userId = user.uid;
                         statusMessage.textContent = '데이터 로딩 중...';
                         console.log("Firebase authenticated. User ID:", userId);
-                        setupFirestoreListener(); // 인증 완료 후 Firestore 리스너 설정
+                        setupFirestoreListener();
                     } else {
-                        statusMessage.textContent = '인증 중...';
-                        console.log("Firebase not authenticated. Signing in...");
-                        // 토큰이 있으면 커스텀 토큰으로 로그인, 없으면 익명 로그인
-                        if (initialAuthToken) {
-                            await signInWithCustomToken(auth, initialAuthToken);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
+                        console.log("Firebase not authenticated.");
+                        statusMessage.textContent = '오류: 인증 실패';
                     }
                 });
             } catch (error) {
@@ -176,8 +168,7 @@ const firebaseConfig = {
 
         // Firestore 데이터 변경을 실시간으로 감지
         const setupFirestoreListener = () => {
-            // 모든 사용자가 공유하는 하나의 문서에 연결
-            const docPath = `artifacts/${appId}/public/data/weekly-plans/current_week_plan`;
+            const docPath = `artifacts/${APP_ID}/public/data/weekly-plans/current_week_plan`;
             const planDocRef = doc(db, docPath);
 
             onSnapshot(planDocRef, (docSnap) => {
@@ -187,7 +178,6 @@ const firebaseConfig = {
                     renderTable(data);
                     statusMessage.textContent = '최신 상태로 업데이트되었습니다.';
                 } else {
-                    // 문서가 없으면 빈 배열로 초기화
                     currentPlanData = [];
                     renderTable([]);
                     statusMessage.textContent = '새로운 문서를 작성해주세요.';
@@ -207,7 +197,7 @@ const firebaseConfig = {
                     statusMessage.textContent = '오류: 저장할 수 없습니다. 다시 시도해주세요.';
                     return;
                 }
-                const docPath = `artifacts/${appId}/public/data/weekly-plans/current_week_plan`;
+                const docPath = `artifacts/${APP_ID}/public/data/weekly-plans/current_week_plan`;
                 const planDocRef = doc(db, docPath);
                 try {
                     await setDoc(planDocRef, { plan: data });
@@ -221,7 +211,7 @@ const firebaseConfig = {
 
         // 테이블을 렌더링 (DOM 업데이트)
         const renderTable = (data) => {
-            planTableBody.innerHTML = ''; // 기존 내용 초기화
+            planTableBody.innerHTML = '';
             data.forEach((rowData, rowIndex) => {
                 const newRow = document.createElement('tr');
                 newRow.className = "hover:bg-gray-50";
@@ -234,7 +224,7 @@ const firebaseConfig = {
                     }
                     newCell.addEventListener('input', (event) => {
                         currentPlanData[rowIndex][colIndex] = event.target.textContent;
-                        saveToFirestore(currentPlanData); // 내용 변경 시 자동 저장
+                        saveToFirestore(currentPlanData);
                     });
                     newRow.appendChild(newCell);
                 });
@@ -242,37 +232,30 @@ const firebaseConfig = {
             });
         };
 
-        /**
-         * 새 행을 추가하는 함수입니다.
-         * 빈 셀 6개(이름 + 5일)를 가진 새로운 행을 생성하고 Firestore에 저장합니다.
-         */
+        // 새 행을 추가하는 함수
         const addRow = () => {
             const newRowData = ['', '', '', '', '', ''];
             currentPlanData.push(newRowData);
             saveToFirestore(currentPlanData);
         };
 
-        /**
-         * 테이블의 모든 내용을 초기화하는 함수입니다.
-         * Firestore에서 문서를 삭제합니다.
-         */
-        const resetTable = async () => {
-            // 모달을 보여줍니다.
+        // 테이블의 모든 내용을 초기화하는 함수
+        const resetTable = () => {
             confirmModal.style.display = 'flex';
         };
 
         // 모달 버튼 이벤트 리스너
         confirmResetBtn.addEventListener('click', async () => {
-            confirmModal.style.display = 'none'; // 모달 숨기기
+            confirmModal.style.display = 'none';
             if (!db || !userId) {
                 console.error("데이터베이스가 초기화되지 않았거나 사용자 ID가 없습니다.");
                 statusMessage.textContent = '오류: 초기화할 수 없습니다. 다시 시도해주세요.';
                 return;
             }
             try {
-                const docPath = `artifacts/${appId}/public/data/weekly-plans/current_week_plan`;
+                const docPath = `artifacts/${APP_ID}/public/data/weekly-plans/current_week_plan`;
                 const planDocRef = doc(db, docPath);
-                await setDoc(planDocRef, { plan: [] }); // 빈 배열로 초기화
+                await setDoc(planDocRef, { plan: [] });
                 statusMessage.textContent = '내용이 초기화되었습니다.';
             } catch (error) {
                 console.error("Firestore 초기화 오류:", error);
@@ -281,19 +264,15 @@ const firebaseConfig = {
         });
 
         cancelResetBtn.addEventListener('click', () => {
-            confirmModal.style.display = 'none'; // 모달 숨기기
+            confirmModal.style.display = 'none';
         });
 
         // 버튼 클릭 이벤트 리스너를 추가합니다.
         addRowBtn.addEventListener('click', addRow);
-        resetBtn.addEventListener('click', () => {
-            // alert() 대신 커스텀 모달 사용
-            confirmModal.style.display = 'flex';
-        });
+        resetBtn.addEventListener('click', resetTable);
 
         // 앱 시작
         window.onload = initFirebase;
     </script>
 </body>
 </html>
-
